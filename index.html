@@ -81,7 +81,7 @@ async function rawApi(action, data = {}) {
     r = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, user: cred?.user, pass: cred?.pass, ...data })
+      body: JSON.stringify({ ...data, action, user: cred?.user, pass: cred?.pass })
     });
   } catch (_) {
     throw new Error('تعذر الاتصال بالخادم. تحقق من الإنترنت ورابط تطبيق الويب.');
@@ -102,7 +102,7 @@ const setHB = () => $('#hb').innerHTML = '<button class="sm sec" onclick="logout
 function viewLogin(err = '') {
   app.innerHTML = `<div class="card login"><div class="logo">🕌</div><h2>تسجيل الدخول</h2>
   <p class="mut">لمتابعة حفظ الطالب (ولي الأمر) أو لوحة المعلم</p>
-  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني)</label><input id="u" name="username" type="text" inputmode="numeric" autocomplete="username" autocapitalize="off" spellcheck="false">
+  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني، أو admin للمعلم)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
   <label style="text-align:right" for="p">كلمة السر</label><input id="p" name="password" type="password" dir="ltr" autocomplete="current-password" autocapitalize="off" spellcheck="false">
   <button style="width:100%;margin-top:14px" id="go">دخول</button><div class="err" ${err ? '' : 'hidden'}>${esc(err)}</div></div>`;
   let submitting = false;
@@ -160,7 +160,7 @@ function viewParent() {
   <button class="sm sec" onclick="chPass()">تغيير كلمة السر</button></div></div>
   ${statsHTML(state.records || [])}${tabsHTML(tab)}<div class="card">${recList(state.records || [], tab, false)}</div>
   <div class="card"><h2>الحضور والغياب</h2>${(()=>{const c=s=>attendance.filter(a=>a.status===s).length;return `<p class="mut">حاضر ${c('حاضر')} · غائب ${c('غائب')} · متأخر ${c('متأخر')} · بعذر ${c('بعذر')}</p>`;})()}${attendance.length ? attendance.map(a=>`<div class="rec"><b>${weekdayShort(a.date)} · ${greg(a.date)}</b> <span class="badge">${esc(a.status)}</span>${a.note ? `<div class="mut">${esc(a.note)}</div>`:''}</div>`).join('') : '<div class="empty">لا توجد سجلات حضور حتى الآن</div>'}</div>
-  <div class="card"><h2>الملاحظات والعقوبات</h2>${notes.length ? notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)}</b><span class="badge">${esc(n.status||'مسجل')}</span></div><div class="mut">${greg(n.date)}</div><div>${esc(n.description)}</div>${n.action ? `<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join('') : '<div class="empty">لا توجد ملاحظات أو عقوبات مسجلة</div>'}</div>`;
+  <div class="card"><h2>الملاحظات والعقوبات</h2>${notes.length ? notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)}</b></div><div class="mut">${greg(n.date)}</div><div>${esc(n.description)}</div>${n.action ? `<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join('') : '<div class="empty">لا توجد ملاحظات أو عقوبات مسجلة</div>'}</div>`;
 }
 window.setTab = t => { state.tab = t; state.view === 'stu' ? viewStudent() : viewParent(); };
 window.chPass = async () => {
@@ -275,10 +275,10 @@ window.setAttendance = (el,civil,date) => {
 function viewNotes() {
   state.view='admin';state.adminPage='notes';
   const notes=(state.notes||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  app.innerHTML=`${adminNav('notes')}<div class="card"><h2>إضافة ملاحظة أو عقوبة</h2><label>الطالب</label><select id="noteCivil">${(state.students||[]).map(s=>`<option value="${esc(s.civil)}">${esc(s.name)} — ${esc(s.civil)}</option>`).join('')}</select><div class="row"><div><label>التاريخ</label><input type="date" id="noteDate" value="${today()}"></div><div><label>التصنيف</label><select id="noteCategory"><option>ملاحظة</option><option>تنبيه</option><option>عقوبة</option><option>إشادة</option></select></div></div><label>التفاصيل</label><textarea id="noteDescription" rows="3" placeholder="اكتب الملاحظة أو سبب العقوبة"></textarea><label>الإجراء المتخذ (اختياري)</label><input id="noteAction"><div class="row"><div><label>الحالة</label><select id="noteStatus"><option>مسجل</option><option>قيد المتابعة</option><option>تمت المعالجة</option></select></div><div style="display:flex;align-items:center;gap:8px;padding-top:24px"><input id="noteVisible" type="checkbox" checked style="width:auto"><label for="noteVisible" style="margin:0">إظهار لولي الأمر</label></div></div><button style="width:100%;margin-top:12px" id="saveNote">حفظ الملاحظة</button></div><div class="card"><h2>السجلات السابقة (${notes.length})</h2>${notes.length?notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)} — ${esc((state.students||[]).find(s=>s.civil===n.civil)?.name||n.civil)}</b><button class="sm red" onclick="deleteNote('${esc(n.id)}')">حذف</button></div><div class="mut">${greg(n.date)} · ${esc(n.status||'مسجل')} · ${n.visibleToParent?'ظاهر لولي الأمر':'خاص بالمشرف'}</div><div>${esc(n.description)}</div>${n.action?`<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join(''):'<div class="empty">لا توجد ملاحظات بعد</div>'}</div>`;
+  app.innerHTML=`${adminNav('notes')}<div class="card"><h2>إضافة ملاحظة أو عقوبة</h2><label>الطالب</label><select id="noteCivil">${(state.students||[]).map(s=>`<option value="${esc(s.civil)}">${esc(s.name)} — ${esc(s.civil)}</option>`).join('')}</select><div class="row"><div><label>التاريخ</label><input type="date" id="noteDate" value="${today()}"></div><div><label>التصنيف</label><select id="noteCategory"><option>ملاحظة</option><option>تنبيه</option><option>عقوبة</option><option>إشادة</option></select></div></div><label>التفاصيل</label><textarea id="noteDescription" rows="3" placeholder="اكتب الملاحظة أو سبب العقوبة"></textarea><label>الإجراء المتخذ (اختياري)</label><input id="noteAction"><div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="noteVisible" type="checkbox" checked style="width:auto"><label for="noteVisible" style="margin:0">إظهار لولي الأمر</label></div><button style="width:100%;margin-top:12px" id="saveNote">حفظ الملاحظة</button></div><div class="card"><h2>السجلات السابقة (${notes.length})</h2>${notes.length?notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)} — ${esc((state.students||[]).find(s=>s.civil===n.civil)?.name||n.civil)}</b><button class="sm red" onclick="deleteNote('${esc(n.id)}')">حذف</button></div><div class="mut">${greg(n.date)} · ${n.visibleToParent?'ظاهر لولي الأمر':'خاص بالمشرف'}</div><div>${esc(n.description)}</div>${n.action?`<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join(''):'<div class="empty">لا توجد ملاحظات بعد</div>'}</div>`;
   $('#saveNote').onclick=async()=>{
     const description=$('#noteDescription').value.trim(); if(!description){toast('اكتب تفاصيل الملاحظة أولًا');return;}
-    try{const n={civil:$('#noteCivil').value,date:$('#noteDate').value,category:$('#noteCategory').value,description,action:$('#noteAction').value,status:$('#noteStatus').value,visibleToParent:$('#noteVisible').checked};const res=await api('addNote',n);state.notes.push({id:res.id,...n});toast('تم حفظ الملاحظة ✓');viewNotes();}catch(e){toast(e.message);}
+    try{const n={civil:$('#noteCivil').value,date:$('#noteDate').value,category:$('#noteCategory').value,description,measure:$('#noteAction').value,visibleToParent:$('#noteVisible').checked};const res=await api('addNote',n);state.notes.push({id:res.id,civil:n.civil,date:n.date,category:n.category,description:n.description,action:n.measure,status:'مسجل',visibleToParent:n.visibleToParent});toast('تم حفظ الملاحظة ✓');viewNotes();}catch(e){toast(e.message);}
   };
 }
 window.deleteNote=async id=>{if(!confirm('حذف هذه الملاحظة؟'))return;try{await api('deleteNote',{id});state.notes=state.notes.filter(n=>n.id!==id);viewNotes();}catch(e){toast(e.message);}};

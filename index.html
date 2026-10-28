@@ -96,13 +96,18 @@ async function rawApi(action, data = {}) {
   return j;
 }
 const logout = () => { sessionStorage.removeItem('cred'); cred = null; $('#hb').innerHTML = ''; viewLogin(); };
-const setHB = () => $('#hb').innerHTML = '<button class="sm sec" onclick="logout()">خروج</button>';
+const ROLE_LABEL = { developer: 'مبرمج', supervisor: 'مشرف', teacher: 'مدرس', parent: 'ولي أمر' };
+const can = p => (state.perms || []).includes(p);
+const setHB = () => {
+  const staff = state.role && state.role !== 'parent';
+  $('#hb').innerHTML = (staff ? `<span style="font-size:.8rem;opacity:.9;margin-inline-end:6px">${esc(state.name || '')} · ${ROLE_LABEL[state.role] || ''}</span><button class="sm sec" onclick="chPass()">كلمة السر</button> ` : '') + '<button class="sm sec" onclick="logout()">خروج</button>';
+};
 
 /* ---------- تسجيل الدخول ---------- */
 function viewLogin(err = '') {
   app.innerHTML = `<div class="card login"><div class="logo">🕌</div><h2>تسجيل الدخول</h2>
   <p class="mut">لمتابعة حفظ الطالب (ولي الأمر) أو لوحة المعلم</p>
-  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني، أو admin للمعلم)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
+  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني لولي الأمر، أو اسم مستخدم الكادر)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
   <label style="text-align:right" for="p">كلمة السر</label><input id="p" name="password" type="password" dir="ltr" autocomplete="current-password" autocapitalize="off" spellcheck="false">
   <button style="width:100%;margin-top:14px" id="go">دخول</button><div class="err" ${err ? '' : 'hidden'}>${esc(err)}</div></div>`;
   let submitting = false;
@@ -132,8 +137,8 @@ function viewLogin(err = '') {
   $('#u').onkeydown = e => { if (e.key==='Enter') { e.preventDefault(); $('#p').focus(); } };
 }
 function start(d) {
-  setHB(); state = d;
-  if (d.role === 'admin') { applyAdmin(d); viewAdmin(); }
+  state = d; setHB();
+  if (d.role !== 'parent') { applyAdmin(d); viewAdmin(); }
   else viewParent();
 }
 
@@ -164,17 +169,15 @@ function viewParent() {
 }
 window.setTab = t => { state.tab = t; state.view === 'stu' ? viewStudent() : viewParent(); };
 window.chPass = async () => {
-  const n = prompt('اكتب كلمة السر الجديدة (٤ أحرف على الأقل):'); if (!n) return;
+  const min = state.role === 'parent' ? 4 : 6, n = prompt('اكتب كلمة السر الجديدة (' + min + ' أحرف على الأقل):'); if (!n) return;
   try { await api('changePass', { newPass: n }); cred.pass = n; sessionStorage.setItem('cred', JSON.stringify(cred)); toast('تم تغيير كلمة السر ✓'); } catch (e) { toast(e.message); }
 };
 
 /* ---------- المعلم: قائمة الطلاب ---------- */
 function adminNav(active) {
-  const items = [
-    ['students','الطلاب','users'],['attendance','الحضور','calendar-check'],
-    ['notes','الملاحظات والعقوبات','clipboard-list'],['analytics','إحصائيات الحفظ','chart-no-axes-combined'],
-    ['import','استيراد وتصدير','file-spreadsheet']
-  ];
+  const items = [['students','الطلاب',1],['attendance','الحضور',can('attendance')],['notes','الملاحظات والعقوبات',can('notes.add')],
+    ['analytics','إحصائيات الحفظ',1],['import','استيراد وتصدير',can('import')||can('export')],
+    ['staff','الحسابات',can('staff.manage')],['system','النظام',can('system')]].filter(x=>x[2]);
   return `<div class="tabs" style="flex-wrap:wrap">${items.map(x=>`<button class="${active===x[0]?'on':''}" onclick="adminPage('${x[0]}')">${x[1]}</button>`).join('')}</div>`;
 }
 window.adminPage = p => {
@@ -183,6 +186,8 @@ window.adminPage = p => {
   if (p==='notes') return viewNotes();
   if (p==='analytics') return viewAnalytics();
   if (p==='import') return viewImport();
+  if (p==='staff') return viewStaff();
+  if (p==='system') return viewSystem();
   return viewAdmin();
 };
 function viewAdmin() {
@@ -190,7 +195,7 @@ function viewAdmin() {
   const q = state.q || '', st = state.st || '';
   const students = state.students || [];
   const list = students.filter(s => (!q || String(s.name||'').includes(q) || String(s.civil||'').includes(q)) && (!st || s.stage === st));
-  app.innerHTML = `${adminNav('students')}<div class="card"><div class="flex"><h2 class="sp" style="margin:0">الطلاب (${students.length})</h2><button class="sm" onclick="viewAdd()">+ طالب جديد</button></div>
+  app.innerHTML = `${adminNav('students')}<div class="card"><div class="flex"><h2 class="sp" style="margin:0">الطلاب (${students.length})</h2>${can('students.manage')?'<button class="sm" onclick="viewAdd()">+ طالب جديد</button>':''}</div>
   <div class="row" style="margin-top:8px"><input id="q" placeholder="بحث بالاسم أو الرقم المدني" value="${esc(q)}"><select id="st"><option value="">كل المراحل</option>${STAGES.map(x => `<option ${x === st ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div>
   <div class="card" style="padding:0 14px">${list.length ? list.map(s => `<div class="item" onclick="openStu('${esc(s.civil)}')"><div class="av">${esc((s.name||'?')[0])}</div><div class="sp"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage) || 'بانتظار المرحلة'} · ${s.count||0} سجل${s.civil?'':' · ⚠ بدون رقم مدني'}</div></div><span class="mut">${s.last ? greg(s.last) : ''}</span></div>`).join('') : '<div class="empty">لا يوجد طلاب</div>'}</div>
   ${(state.pending||[]).length ? `<div class="card"><h2>أسماء بانتظار استكمال البيانات (${state.pending.length})</h2><p class="mut">هذه الأسماء لا تملك حساب دخول حتى إضافة الرقم المدني.</p>${state.pending.map(p=>`<div class="rec"><b>${esc(p.name)}</b><button class="sm sec" onclick="completePending(decodeURIComponent('${encodeURIComponent(p.name)}'))">استكمال البيانات</button></div>`).join('')}</div>`:''}`;
@@ -275,7 +280,7 @@ window.setAttendance = (el,civil,date) => {
 function viewNotes() {
   state.view='admin';state.adminPage='notes';
   const notes=(state.notes||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  app.innerHTML=`${adminNav('notes')}<div class="card"><h2>إضافة ملاحظة أو عقوبة</h2><label>الطالب</label><select id="noteCivil">${(state.students||[]).map(s=>`<option value="${esc(s.civil)}">${esc(s.name)} — ${esc(s.civil)}</option>`).join('')}</select><div class="row"><div><label>التاريخ</label><input type="date" id="noteDate" value="${today()}"></div><div><label>التصنيف</label><select id="noteCategory"><option>ملاحظة</option><option>تنبيه</option><option>عقوبة</option><option>إشادة</option></select></div></div><label>التفاصيل</label><textarea id="noteDescription" rows="3" placeholder="اكتب الملاحظة أو سبب العقوبة"></textarea><label>الإجراء المتخذ (اختياري)</label><input id="noteAction"><div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="noteVisible" type="checkbox" checked style="width:auto"><label for="noteVisible" style="margin:0">إظهار لولي الأمر</label></div><button style="width:100%;margin-top:12px" id="saveNote">حفظ الملاحظة</button></div><div class="card"><h2>السجلات السابقة (${notes.length})</h2>${notes.length?notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)} — ${esc((state.students||[]).find(s=>s.civil===n.civil)?.name||n.civil)}</b><button class="sm red" onclick="deleteNote('${esc(n.id)}')">حذف</button></div><div class="mut">${greg(n.date)} · ${n.visibleToParent?'ظاهر لولي الأمر':'خاص بالمشرف'}</div><div>${esc(n.description)}</div>${n.action?`<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join(''):'<div class="empty">لا توجد ملاحظات بعد</div>'}</div>`;
+  app.innerHTML=`${adminNav('notes')}<div class="card"><h2>إضافة ملاحظة أو عقوبة</h2><label>الطالب</label><select id="noteCivil">${(state.students||[]).map(s=>`<option value="${esc(s.civil)}">${esc(s.name)} — ${esc(s.civil)}</option>`).join('')}</select><div class="row"><div><label>التاريخ</label><input type="date" id="noteDate" value="${today()}"></div><div><label>التصنيف</label><select id="noteCategory"><option>ملاحظة</option><option>تنبيه</option><option>عقوبة</option><option>إشادة</option></select></div></div><label>التفاصيل</label><textarea id="noteDescription" rows="3" placeholder="اكتب الملاحظة أو سبب العقوبة"></textarea><label>الإجراء المتخذ (اختياري)</label><input id="noteAction"><div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="noteVisible" type="checkbox" checked style="width:auto"><label for="noteVisible" style="margin:0">إظهار لولي الأمر</label></div><button style="width:100%;margin-top:12px" id="saveNote">حفظ الملاحظة</button></div><div class="card"><h2>السجلات السابقة (${notes.length})</h2>${notes.length?notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)} — ${esc((state.students||[]).find(s=>s.civil===n.civil)?.name||n.civil)}</b>${can('notes.delete')?`<button class="sm red" onclick="deleteNote('${esc(n.id)}')">حذف</button>`:''}</div><div class="mut">${greg(n.date)} · ${n.visibleToParent?'ظاهر لولي الأمر':'خاص بالمشرف'}</div><div>${esc(n.description)}</div>${n.action?`<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join(''):'<div class="empty">لا توجد ملاحظات بعد</div>'}</div>`;
   $('#saveNote').onclick=async()=>{
     const description=$('#noteDescription').value.trim(); if(!description){toast('اكتب تفاصيل الملاحظة أولًا');return;}
     try{const n={civil:$('#noteCivil').value,date:$('#noteDate').value,category:$('#noteCategory').value,description,measure:$('#noteAction').value,visibleToParent:$('#noteVisible').checked};const res=await api('addNote',n);state.notes.push({id:res.id,civil:n.civil,date:n.date,category:n.category,description:n.description,action:n.measure,status:'مسجل',visibleToParent:n.visibleToParent});toast('تم حفظ الملاحظة ✓');viewNotes();}catch(e){toast(e.message);}
@@ -295,6 +300,8 @@ function viewImport() {
   state.view='admin';state.adminPage='import';
   const pending=state.pending||[];
   app.innerHTML=`${adminNav('import')}<div class="card"><h2>استيراد بيانات الطلاب من Excel</h2><p class="mut">يمكن رفع ملف يحتوي على أعمدة الاسم/ name، الرقم المدني/ civil، المرحلة/ stage، الهاتف/ phone. إذا احتوى الصف على اسم فقط، سيُحفظ في قائمة الأسماء التي تنتظر استكمال البيانات ولن يُنشأ له حساب دخول بعد.</p><label>اختر ملف Excel أو CSV</label><input id="excelFile" type="file" accept=".xlsx,.xls,.csv"><button id="importBtn" style="width:100%;margin-top:12px">رفع واستيراد الملف</button><div id="importResult" class="mut" style="margin-top:10px"></div></div><div class="card"><h2>تصدير البيانات</h2><p class="mut">ينشئ ملف Excel يتضمن الطلاب، والحفظ والمراجعة، والحضور، والملاحظات، والأسماء قيد الاستكمال.</p><button id="exportBtn" style="width:100%">تصدير جميع البيانات إلى Excel</button></div><div class="card"><h2>أسماء بانتظار استكمال البيانات (${pending.length})</h2>${pending.length?pending.map(p=>`<div class="rec"><b>${esc(p.name)}</b><button class="sm sec" onclick="completePending(decodeURIComponent('${encodeURIComponent(p.name)}'))">إنشاء حساب بعد استكمال البيانات</button></div>`).join(''):'<div class="empty">لا توجد أسماء معلقة</div>'}</div>`;
+  if(!can('import')) $('#importBtn').closest('.card').style.display='none';
+  if(!can('export')) $('#exportBtn').closest('.card').style.display='none';
   $('#importBtn').onclick=async()=>{
     const file=$('#excelFile').files[0];if(!file){toast('اختر ملفًا أولًا');return;}
     if(!window.XLSX){toast('تعذر تحميل أداة Excel؛ تحقق من اتصال الإنترنت.');return;}
@@ -339,12 +346,12 @@ function viewStudent() {
   state.view = 'stu'; const s = state.cur, tab = state.tab;
   app.innerHTML = `<button class="sm sec" onclick="viewAdmin()">→ رجوع</button>
   <div class="card" style="margin-top:10px"><div class="flex"><div class="av">${esc(s.name[0])}</div><div class="sp"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage) || ''} · ${esc(s.civil)} ${s.phone ? '· ' + esc(s.phone) : ''}</div></div></div>
-  <div class="flex" style="margin-top:10px"><button class="sm sec" onclick="editStu()">تعديل البيانات</button><button class="sm sec" onclick="resetP()">إعادة كلمة السر</button><button class="sm red" onclick="delStu()">حذف الطالب</button></div></div>
+  <div class="flex" style="margin-top:10px">${can('students.manage')?'<button class="sm sec" onclick="editStu()">تعديل البيانات</button>':''}${can('password.reset')?'<button class="sm sec" onclick="resetP()">إعادة كلمة السر</button>':''}${can('students.manage')?'<button class="sm red" onclick="delStu()">حذف الطالب</button>':''}</div></div>
   <div class="card"><h2>تسجيل جديد</h2><div class="row keep"><div><label>التاريخ</label><input type="date" id="d" value="${today()}"></div><div><label>النوع</label><select id="t"><option>حفظ</option><option>مراجعة</option></select></div></div>
   <label>السورة</label><input id="su" list="sl" placeholder="اكتب أو اختر"><datalist id="sl">${SURAHS.map(x => `<option value="${x}">`).join('')}</datalist>
   <div class="row"><div><label>الآيات / الصفحة</label><input id="ay" placeholder="كاملة أو ١–٢٠"></div><div><label>التقييم</label><select id="rt">${RATINGS.map(x => `<option>${x}</option>`).join('')}</select></div></div>
   <label>ملاحظة (اختياري)</label><input id="nt"><button style="width:100%;margin-top:12px" id="ar">إضافة</button></div>
-  ${statsHTML(state.curRecords || [])}${tabsHTML(tab)}<div class="card">${recList(state.curRecords || [], tab, true)}</div>`;
+  ${statsHTML(state.curRecords || [])}${tabsHTML(tab)}<div class="card">${recList(state.curRecords || [], tab, can('records.delete'))}</div>`;
   $('#ar').onclick = async () => {
     const rec = { date: $('#d').value, type: $('#t').value, surah: $('#su').value.trim(), ayat: $('#ay').value, rating: $('#rt').value, note: $('#nt').value };
     if (!rec.surah) { toast('اكتب اسم السورة'); return; }
@@ -364,6 +371,52 @@ window.editStu = async () => {
   try { await api('updateStudent', { civil: s.civil, name, stage, phone }); await loadAdminData(); state.cur = state.students.find(x => x.civil === s.civil); syncCur(); viewStudent(); toast('تم التحديث ✓'); } catch (e) { toast(e.message); }
 };
 window.delStu = async () => { if (!confirm('سيتم حذف الطالب وكل سجلاته نهائياً. متأكد؟')) return; try { await api('delStudent', { civil: state.cur.civil }); toast('تم الحذف'); await refresh(); } catch (e) { toast(e.message); } };
+
+
+/* ---------- إدارة الحسابات (مبرمج / مشرف) ---------- */
+const PERM_TABLE = [
+  ['عرض الطلاب والإحصائيات', 1, 1, 1], ['تسجيل الحفظ والمراجعة', 1, 1, 1], ['تسجيل الحضور', 1, 1, 1], ['إضافة ملاحظات وعقوبات', 1, 1, 1],
+  ['رؤية هاتف ولي الأمر', 0, 1, 1], ['حذف سجلات الحفظ والملاحظات', 0, 1, 1], ['إضافة وتعديل وحذف الطلاب', 0, 1, 1],
+  ['إعادة كلمة سر ولي الأمر', 0, 1, 1], ['استيراد وتصدير Excel', 0, 1, 1], ['إدارة حسابات المدرسين', 0, 1, 1],
+  ['إدارة المشرفين والمبرمجين', 0, 0, 1], ['أدوات النظام', 0, 0, 1]
+];
+async function viewStaff() {
+  state.view = 'admin'; state.adminPage = 'staff';
+  app.innerHTML = `${adminNav('staff')}<div class="card"><div class="empty">جارٍ التحميل…</div></div>`;
+  try { const d = await api('listStaff'); state.staffList = d.staff; state.staffRoles = d.roles; renderStaff(); } catch (e) { toast(e.message); }
+}
+function renderStaff() {
+  const list = state.staffList || [], roles = state.staffRoles || [];
+  app.innerHTML = `${adminNav('staff')}<div class="card"><h2>إضافة حساب</h2>
+  <div class="row"><div><label>الاسم</label><input id="stfName"></div><div><label>اسم المستخدم (حروف إنجليزية بلا مسافات)</label><input id="stfUser" dir="ltr" autocapitalize="off" autocomplete="off"></div></div>
+  <div class="row"><div><label>الدور</label><select id="stfRole">${roles.map(r => `<option value="${r.id}">${esc(r.label)}</option>`).join('')}</select></div><div><label>كلمة السر (٦ أحرف على الأقل)</label><input id="stfPass" dir="ltr" autocomplete="off"></div></div>
+  <button style="width:100%;margin-top:12px" id="stfAdd">إضافة الحساب</button></div>
+  <div class="card"><h2>الحسابات (${list.length})</h2>${list.length ? list.map(x => `<div class="rec"><div class="t"><b>${esc(x.name)}</b><span class="badge">${esc(ROLE_LABEL[x.role] || x.role)}</span>${x.active ? '' : '<span class="badge b-يحتاج-إعادة">موقوف</span>'}</div><div class="mut" dir="ltr" style="text-align:right">${esc(x.username)}</div>
+  <div class="flex" style="margin-top:6px"><button class="sm sec" onclick="staffPass('${esc(x.username)}')">كلمة سر جديدة</button><button class="sm sec" onclick="staffToggle('${esc(x.username)}',${!x.active})">${x.active ? 'إيقاف' : 'تفعيل'}</button><button class="sm red" onclick="staffDel('${esc(x.username)}')">حذف</button></div></div>`).join('') : '<div class="empty">لا توجد حسابات بعد</div>'}</div>
+  <div class="card"><h2>جدول الصلاحيات</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr><th style="text-align:right;padding:6px">الصلاحية</th><th>مدرس</th><th>مشرف</th><th>مبرمج</th></tr></thead><tbody>${PERM_TABLE.map(r => `<tr><td style="padding:6px;border-top:1px solid var(--bd)">${r[0]}</td>${[1, 2, 3].map(i => `<td style="text-align:center;border-top:1px solid var(--bd)">${r[i] ? '✓' : '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  $('#stfAdd').onclick = async () => {
+    const btn = $('#stfAdd'); btn.disabled = true;
+    try { await api('addStaff', { username: $('#stfUser').value.trim(), name: $('#stfName').value.trim(), role: $('#stfRole').value, newPass: $('#stfPass').value }); toast('تمت إضافة الحساب ✓'); viewStaff(); }
+    catch (e) { toast(e.message); btn.disabled = false; }
+  };
+}
+window.staffPass = async u => { const n = prompt('كلمة السر الجديدة للحساب ' + u + ' (٦ أحرف على الأقل):'); if (!n) return; try { await api('resetStaffPass', { username: u, newPass: n }); toast('تم تغيير كلمة السر ✓'); } catch (e) { toast(e.message); } };
+window.staffToggle = async (u, active) => { try { await api('updateStaff', { username: u, active }); viewStaff(); } catch (e) { toast(e.message); } };
+window.staffDel = async u => { if (!confirm('حذف الحساب ' + u + ' نهائيًا؟')) return; try { await api('delStaff', { username: u }); viewStaff(); } catch (e) { toast(e.message); } };
+
+/* ---------- النظام (المبرمج) ---------- */
+async function viewSystem() {
+  state.view = 'admin'; state.adminPage = 'system';
+  app.innerHTML = `${adminNav('system')}<div class="card"><div class="empty">جارٍ التحميل…</div></div>`;
+  try {
+    const d = await api('systemInfo'), c = d.counts, warn = [];
+    if (d.noCivil) warn.push(`${d.noCivil} طالب بلا رقم مدني (لا يستطيعون الدخول)`);
+    if (d.noHash) warn.push(`${d.noHash} حساب سيُنشأ له كلمة سر عند أول دخول`);
+    app.innerHTML = `${adminNav('system')}<div class="stats"><div class="stat"><b>${d.version}</b><span class="mut">إصدار الخادم</span></div><div class="stat"><b>${c.students}</b><span class="mut">الطلاب</span></div><div class="stat"><b>${c.staff}</b><span class="mut">حسابات الكادر</span></div><div class="stat"><b>${c.records}</b><span class="mut">سجلات الحفظ</span></div><div class="stat"><b>${c.attendance}</b><span class="mut">سجلات الحضور</span></div><div class="stat"><b>${c.notes}</b><span class="mut">الملاحظات</span></div></div>
+    <div class="card"><h2>معلومات الخادم</h2><div class="rec"><span class="mut">المنطقة الزمنية:</span> <span dir="ltr">${esc(d.timezone)}</span></div><div class="rec"><span class="mut">تاريخ الخادم اليوم:</span> <span dir="ltr">${esc(d.serverDate)}</span> ${d.serverDate === today() ? '✓' : '<b style="color:var(--red)">يختلف عن تاريخ جهازك — اضبط المنطقة الزمنية</b>'}</div>
+    ${warn.length ? warn.map(w => `<div class="rec">⚠ ${esc(w)}</div>`).join('') : '<div class="rec">✓ لا توجد مشاكل في البيانات</div>'}</div>`;
+  } catch (e) { toast(e.message); }
+}
 
 /* ---------- البدء ---------- */
 if (cred) api('login').then(start).catch(() => logout()); else viewLogin();

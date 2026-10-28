@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1b6b4a">
+<title>منصة القرآن – حلقة الظاهر</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--g:#1b6b4a;--g2:#e8f3ee;--gold:#b8892b;--bg:#f6f7f4;--tx:#1f2a24;--mut:#6b7a72;--bd:#dfe5e0;--red:#b3402f}
+*{box-sizing:border-box}
+body{margin:0;font-family:Cairo,Tahoma,sans-serif;background:var(--bg);color:var(--tx);font-size:16px}
+header{background:var(--g);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:1.15rem;flex:1}
+header small{opacity:.8;font-weight:400}
+main{max-width:760px;margin:0 auto;padding:14px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:1.05rem;margin:0 0 10px;color:var(--g)}
+label{display:block;font-size:.85rem;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;font:inherit;background:#fff}
+input:focus,select:focus{outline:2px solid var(--g2);border-color:var(--g)}
+button{font:inherit;border:0;border-radius:10px;padding:10px 16px;background:var(--g);color:#fff;cursor:pointer;font-weight:600}button:disabled{opacity:.65;cursor:wait}
+button.sec{background:var(--g2);color:var(--g)}button.red{background:#fbeae7;color:var(--red)}
+button.sm{padding:6px 10px;font-size:.85rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+.item{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--bd);cursor:pointer}
+.item:last-child{border:0}
+.av{width:40px;height:40px;border-radius:50%;background:var(--g2);color:var(--g);display:grid;place-items:center;font-weight:700;flex:none}
+.mut{color:var(--mut);font-size:.85rem}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.8rem;background:var(--g2);color:var(--g);font-weight:600}
+.b-ممتاز{background:#dff3e6;color:#13693a}.b-جيد-جداً{background:#e5f0fb;color:#1f5a99}.b-جيد{background:#fff3d6;color:#8a6410}.b-مقبول{background:#fdebd9;color:#9a5313}.b-يحتاج-إعادة{background:#fbeae7;color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:1.4rem;color:var(--g)}
+.tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button{flex:1;background:#fff;color:var(--mut);border:1px solid var(--bd)}
+.tabs button.on{background:var(--g);color:#fff;border-color:var(--g)}
+.rec{padding:12px 0;border-bottom:1px solid var(--bd)}.rec:last-child{border:0}
+.rec .t{display:flex;gap:8px;align-items:center}.rec .t b{flex:1}
+.err{background:#fbeae7;color:var(--red);padding:10px;border-radius:10px;margin-top:10px}
+.login{max-width:380px;margin:8vh auto 0;text-align:center}
+.login .logo{font-size:3rem}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:30px;display:none;z-index:9}
+.att{width:100%;padding:9px 0;border:0;border-radius:10px;font:inherit;font-size:.78rem;font-weight:600;text-align:center;text-align-last:center;-webkit-appearance:none;appearance:none;cursor:pointer}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--gold);z-index:20;opacity:0;transition:width .3s,opacity .3s}
+.empty{text-align:center;color:var(--mut);padding:24px}
+@media(max-width:480px){.row{grid-template-columns:1fr}.row.keep{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><span style="font-size:1.5rem">📖</span><h1>منصة القرآن <small>· حلقة قرية الظاهر</small></h1><span id="hb"></span></header>
+<main id="app"></main>
+<div id="bar"></div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+/* ضع هنا رابط تطبيق الويب (Web app URL) الناتج من Google Apps Script */
+const API = 'https://script.google.com/macros/s/AKfycbxaQfhAsl5eoKCGGVWN5ftNJsH8s-QzTLlHzONI4gRtU51InmL4XV_rlR0ET-aUyfIE/exec';
+const STAGES = ['تمهيدي (٤–٦ سنوات)','ابتدائي (١–٤)','ابتدائي (٥–٦)','إعدادي','ثانوي','بالغون'];
+const RATINGS = ['ممتاز','جيد جداً','جيد','مقبول','يحتاج إعادة'];
+const SURAHS = 'الفاتحة،البقرة،آل عمران،النساء،المائدة،الأنعام،الأعراف،الأنفال،التوبة،يونس،هود،يوسف،الرعد،إبراهيم،الحجر،النحل،الإسراء،الكهف،مريم،طه،الأنبياء،الحج،المؤمنون،النور،الفرقان،الشعراء،النمل،القصص،العنكبوت،الروم،لقمان،السجدة،الأحزاب،سبأ،فاطر،يس،الصافات،ص،الزمر،غافر،فصلت،الشورى،الزخرف،الدخان،الجاثية،الأحقاف،محمد،الفتح،الحجرات،ق،الذاريات،الطور،النجم،القمر،الرحمن،الواقعة،الحديد،المجادلة،الحشر،الممتحنة،الصف،الجمعة،المنافقون،التغابن،الطلاق،التحريم،الملك،القلم،الحاقة،المعارج،نوح،الجن،المزمل،المدثر،القيامة،الإنسان،المرسلات،النبأ،النازعات،عبس،التكوير،الانفطار،المطففين،الانشقاق،البروج،الطارق،الأعلى،الغاشية،الفجر،البلد،الشمس،الليل،الضحى،الشرح،التين،العلق،القدر،البينة،الزلزلة،العاديات،القارعة،التكاثر،العصر،الهمزة،الفيل،قريش،الماعون،الكوثر،الكافرون،النصر،المسد،الإخلاص،الفلق،الناس'.split('،');
+
+const $ = s => document.querySelector(s), app = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast = m => { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2400); };
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const hijri = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString('ar-OM-u-ca-islamic', {day:'numeric', month:'long', year:'numeric'}); } catch { return ''; } };
+const normDigits = v => String(v ?? '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).trim();
+const greg = d => d ? d.split('-').reverse().join('/') : '—';
+let cred = JSON.parse(sessionStorage.getItem('cred') || 'null'), state = {};
+const periodCodeForDate = (d=today()) => { const [y,m]=d.split('-').map(Number); return m>=9 ? `Y${y}-${y+1}` : m<=5 ? `Y${y-1}-${y}` : `S${y}`; };
+const periodLabel = p => /^Y(\d{4})-(\d{4})$/.test(p) ? `السنة الدراسية ${p.slice(1).replace('-', '–')} (سبتمبر–مايو)` : /^S\d{4}$/.test(p) ? `البرنامج الصيفي ${p.slice(1)}` : 'غير مسجل';
+const availablePeriods = () => { const y=Number(today().slice(0,4)); return [`Y${y-1}-${y}`,`S${y}`,`Y${y}-${y+1}`,`S${y+1}`,`Y${y+1}-${y+2}`]; };
+
+let inflight = 0;
+const bar = on => { const b = $('#bar'); if (on) { b.style.opacity = 1; b.style.width = '70%'; } else { b.style.width = '100%'; setTimeout(() => { if (!inflight) { b.style.opacity = 0; b.style.width = '0'; } }, 250); } };
+async function api(action, data = {}) {
+  if (++inflight === 1) bar(true);
+  try { return await rawApi(action, data); } finally { if (--inflight === 0) bar(false); }
+}
+async function rawApi(action, data = {}) {
+  let r;
+  try {
+    r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...data, action, user: cred?.user, pass: cred?.pass })
+    });
+  } catch (_) {
+    throw new Error('تعذر الاتصال بالخادم. تحقق من الإنترنت ورابط تطبيق الويب.');
+  }
+  let j;
+  try { j = await r.json(); }
+  catch (_) { throw new Error('استجابة الخادم غير صالحة. تحقق من نشر إصدار Apps Script الصحيح.'); }
+  if (!j || !j.ok) {
+    const m = j?.error || 'تعذر تنفيذ الطلب.';
+    throw new Error(m === 'أمر غير معروف' ? 'الخادم يعمل بنسخة قديمة من Apps Script. انشر إصداراً جديداً: نشر ← إدارة عمليات النشر ← تعديل ← إصدار جديد ← نشر.' : m);
+  }
+  return j;
+}
+const logout = () => { sessionStorage.removeItem('cred'); cred = null; $('#hb').innerHTML = ''; viewLogin(); };
+const ROLE_LABEL = { developer: 'مبرمج', supervisor: 'مشرف', teacher: 'مدرس', parent: 'ولي أمر' };
+const can = p => (state.perms || []).includes(p);
+const setHB = () => {
+  const staff = state.role && state.role !== 'parent';
+  $('#hb').innerHTML = (staff ? `<span style="font-size:.8rem;opacity:.9;margin-inline-end:6px">${esc(state.name || '')} · ${ROLE_LABEL[state.role] || ''}</span><button class="sm sec" onclick="chPass()">كلمة السر</button> ` : '') + '<button class="sm sec" onclick="logout()">خروج</button>';
+};
+
+/* ---------- تسجيل الدخول ---------- */
+function viewLogin(err = '') {
+  app.innerHTML = `<div class="card login"><div class="logo">🕌</div><h2>تسجيل الدخول</h2>
+  <p class="mut">لمتابعة حفظ الطالب (ولي الأمر) أو لوحة المعلم</p>
+  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني لولي الأمر، أو اسم مستخدم الكادر)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
+  <label style="text-align:right" for="p">كلمة السر</label><input id="p" name="password" type="password" dir="ltr" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+  <button style="width:100%;margin-top:14px" id="go">دخول</button><div class="err" ${err ? '' : 'hidden'}>${esc(err)}</div></div>`;
+  let submitting = false;
+  const go = async (event) => {
+    if (event) event.preventDefault();
+    if (submitting) return;
+    const user = normDigits($('#u').value), pass = $('#p').value;
+    const errorBox = app.querySelector('.err');
+    if (!user || !pass) { errorBox.textContent='يرجى إدخال اسم المستخدم وكلمة السر.'; errorBox.hidden=false; return; }
+    submitting = true;
+    $('#go').disabled = true; $('#go').textContent = 'جارٍ الدخول…';
+    errorBox.hidden = true; cred = {user,pass};
+    try {
+      const d = await api('login');
+      sessionStorage.setItem('cred', JSON.stringify(cred));
+      start(d);
+    } catch (e) {
+      errorBox.textContent = e.message || 'تعذر تسجيل الدخول.';
+      errorBox.hidden = false;
+    } finally {
+      submitting = false;
+      if ($('#go')) { $('#go').disabled=false; $('#go').textContent='دخول'; }
+    }
+  };
+  $('#go').onclick = go;
+  $('#p').onkeydown = e => { if (e.key==='Enter') go(e); };
+  $('#u').onkeydown = e => { if (e.key==='Enter') { e.preventDefault(); $('#p').focus(); } };
+}
+function start(d) {
+  state = d; setHB();
+  if (d.role !== 'parent') { applyAdmin(d); viewAdmin(); }
+  else viewParent();
+}
+
+/* ---------- عرض السجلات (مشترك) ---------- */
+function recList(recs, type, canDel) {
+  const l = recs.filter(r => r.type === type);
+  if (!l.length) return `<div class="empty">لا توجد سجلات ${type === 'حفظ' ? 'حفظ' : 'مراجعة'} بعد</div>`;
+  return l.map(r => `<div class="rec"><div class="t"><b>${esc(r.surah)}</b>${r.rating ? `<span class="badge b-${esc(r.rating).replace(/ /g,'-')}">${esc(r.rating)}</span>` : ''}
+    ${canDel ? `<button class="sm red" onclick="delRec('${esc(r.id)}')">حذف</button>` : ''}</div>
+    <div class="mut">${esc(r.ayat) || '—'} · ${greg(r.date)} · ${hijri(r.date)}</div>${r.note ? `<div style="margin-top:4px">${esc(r.note)}</div>` : ''}</div>`).join('');
+}
+function statsHTML(recs) {
+  const h = recs.filter(r => r.type === 'حفظ'), m = recs.filter(r => r.type === 'مراجعة');
+  return `<div class="stats"><div class="stat"><b>${h.length}</b><span class="mut">حفظ</span></div><div class="stat"><b>${m.length}</b><span class="mut">مراجعة</span></div><div class="stat"><b>${new Set(h.map(r => r.surah)).size}</b><span class="mut">سور محفوظة</span></div></div>`;
+}
+function tabsHTML(on) { return `<div class="tabs"><button class="${on === 'حفظ' ? 'on' : ''}" onclick="setTab('حفظ')">الحفظ</button><button class="${on === 'مراجعة' ? 'on' : ''}" onclick="setTab('مراجعة')">المراجعة</button></div>`; }
+
+/* ---------- ولي الأمر / الطالب ---------- */
+function viewParent() {
+  const s = state.student, tab = state.tab || 'حفظ';
+  const attendance = (state.attendance || []).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const notes = (state.notes || []).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  app.innerHTML = `<div class="card"><div class="flex"><div class="av">${esc((s.name||'?')[0])}</div><div class="sp"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage) || ''}</div></div>
+  <button class="sm sec" onclick="chPass()">تغيير كلمة السر</button></div></div>
+  ${statsHTML(state.records || [])}${tabsHTML(tab)}<div class="card">${recList(state.records || [], tab, false)}</div>
+  <div class="card"><h2>الحضور والغياب</h2>${(()=>{const c=s=>attendance.filter(a=>a.status===s).length;return `<p class="mut">حاضر ${c('حاضر')} · غائب ${c('غائب')} · متأخر ${c('متأخر')} · بعذر ${c('بعذر')}</p>`;})()}${attendance.length ? attendance.map(a=>`<div class="rec"><b>${weekdayShort(a.date)} · ${greg(a.date)}</b> <span class="badge">${esc(a.status)}</span>${a.note ? `<div class="mut">${esc(a.note)}</div>`:''}</div>`).join('') : '<div class="empty">لا توجد سجلات حضور حتى الآن</div>'}</div>
+  <div class="card"><h2>الملاحظات والعقوبات</h2>${notes.length ? notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)}</b></div><div class="mut">${greg(n.date)}</div><div>${esc(n.description)}</div>${n.action ? `<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join('') : '<div class="empty">لا توجد ملاحظات أو عقوبات مسجلة</div>'}</div>`;
+}
+window.setTab = t => { state.tab = t; state.view === 'stu' ? viewStudent() : viewParent(); };
+window.chPass = async () => {
+  const min = state.role === 'parent' ? 4 : 6, n = prompt('اكتب كلمة السر الجديدة (' + min + ' أحرف على الأقل):'); if (!n) return;
+  try { await api('changePass', { newPass: n }); cred.pass = n; sessionStorage.setItem('cred', JSON.stringify(cred)); toast('تم تغيير كلمة السر ✓'); } catch (e) { toast(e.message); }
+};
+
+/* ---------- المعلم: قائمة الطلاب ---------- */
+function adminNav(active) {
+  const items = [['students','الطلاب',1],['attendance','الحضور',can('attendance')],['notes','الملاحظات والعقوبات',can('notes.add')],
+    ['analytics','إحصائيات الحفظ',1],['import','استيراد وتصدير',can('import')||can('export')],
+    ['staff','الحسابات',can('staff.manage')],['system','النظام',can('system')]].filter(x=>x[2]);
+  return `<div class="tabs" style="flex-wrap:wrap">${items.map(x=>`<button class="${active===x[0]?'on':''}" onclick="adminPage('${x[0]}')">${x[1]}</button>`).join('')}</div>`;
+}
+window.adminPage = p => {
+  state.adminPage = p;
+  if (p==='attendance') return viewAttendance();
+  if (p==='notes') return viewNotes();
+  if (p==='analytics') return viewAnalytics();
+  if (p==='import') return viewImport();
+  if (p==='staff') return viewStaff();
+  if (p==='system') return viewSystem();
+  return viewAdmin();
+};
+function viewAdmin() {
+  state.view = 'admin'; state.adminPage = 'students';
+  const q = state.q || '', st = state.st || '';
+  const students = state.students || [];
+  const periods = availablePeriods();
+  const selectedPeriod = state.periodFilter || periodCodeForDate();
+  const enrollments = state.enrollments || [];
+  const enrolledCivils = new Set(enrollments.filter(e => e.period === selectedPeriod).map(e => String(e.civil)));
+  const periodStudents = students.filter(s => s.civil && enrolledCivils.has(String(s.civil)));
+  const list = periodStudents.filter(s => (!q || String(s.name||'').includes(q) || String(s.civil||'').includes(q)) && (!st || s.stage === st));
+  const targetPeriod = state.periodTarget || (selectedPeriod.startsWith('S') ? selectedPeriod : `S${Number(selectedPeriod.slice(1,5))+1}`);
+  app.innerHTML = `${adminNav('students')}<div class="card"><div class="flex"><h2 class="sp" style="margin:0">الطلاب (${list.length})</h2>${can('students.manage')?'<button class="sm" onclick="viewAdd()">+ طالب جديد</button>':''}</div>
+  <label style="margin-top:12px">تصنيف الطلاب حسب البرنامج</label><select id="periodFilter">${periods.map(x=>`<option value="${x}" ${x===selectedPeriod?'selected':''}>${periodLabel(x)}</option>`).join('')}</select>
+  <div class="row" style="margin-top:8px"><input id="q" placeholder="بحث بالاسم أو الرقم المدني" value="${esc(q)}"><select id="st"><option value="">كل المراحل</option>${STAGES.map(x => `<option ${x === st ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+  <p class="mut" style="margin-bottom:0">الطالب يحتفظ بالحساب نفسه؛ ويمكن إضافته إلى البرنامج الصيفي دون إعادة تسجيل بياناته.</p></div>
+  ${can('students.manage') ? `<div class="card"><h3 style="margin-top:0">إضافة طلاب إلى فترة أخرى</h3><label>الفترة المطلوب إضافة الطلاب إليها</label><select id="periodTarget">${periods.map(x=>`<option value="${x}" ${x===targetPeriod?'selected':''}>${periodLabel(x)}</option>`).join('')}</select><div class="flex" style="margin:10px 0"><label style="display:flex;align-items:center;gap:7px;margin:0"><input type="checkbox" id="selectAll" style="width:auto"> تحديد كل طلاب القائمة</label><button class="sm" id="enrollSelected">إضافة المحددين إلى الفترة</button></div><p class="mut">اختر الطلاب من القائمة أدناه ثم أضفهم إلى البرنامج الصيفي أو السنة الدراسية المطلوبة. لا يتم إنشاء حسابات جديدة.</p></div>` : ''}
+  <div class="card" style="padding:0 14px">${list.length ? list.map(s => `<div class="item"><div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">${can('students.manage')?`<input type="checkbox" class="pickStudent" value="${esc(s.civil)}" style="width:auto;flex-shrink:0">`:''}<div class="av" onclick="openStu('${esc(s.civil)}')">${esc((s.name||'?')[0])}</div><div class="sp" onclick="openStu('${esc(s.civil)}')"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage) || 'بانتظار المرحلة'} · ${s.count||0} سجل${s.civil?'':' · ⚠ بدون رقم مدني'}</div></div></div><span class="mut">${s.last ? greg(s.last) : ''}</span></div>`).join('') : '<div class="empty">لا يوجد طلاب مسجلون في هذه الفترة</div>'}</div>
+  ${(state.pending||[]).length ? `<div class="card"><h2>أسماء بانتظار استكمال البيانات (${state.pending.length})</h2><p class="mut">هذه الأسماء لا تملك حساب دخول حتى إضافة الرقم المدني.</p>${state.pending.map(p=>`<div class="rec"><b>${esc(p.name)}</b><button class="sm sec" onclick="completePending(decodeURIComponent('${encodeURIComponent(p.name)}'))">استكمال البيانات</button></div>`).join('')}</div>`:''}`;
+  $('#periodFilter').onchange = e => { state.periodFilter=e.target.value; viewAdmin(); };
+  $('#q').oninput = e => { state.q=e.target.value; const query=state.q, stage=$('#st').value; const filtered=periodStudents.filter(s=>(!query||String(s.name||'').includes(query)||String(s.civil||'').includes(query))&&(!stage||s.stage===stage)); const card=app.querySelector('.card[style*="padding:0 14px"]'); if(card) card.innerHTML=filtered.length?filtered.map(s=>`<div class="item"><div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">${can('students.manage')?`<input type="checkbox" class="pickStudent" value="${esc(s.civil)}" style="width:auto;flex-shrink:0">`:''}<div class="av" onclick="openStu('${esc(s.civil)}')">${esc((s.name||'?')[0])}</div><div class="sp" onclick="openStu('${esc(s.civil)}')"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage)||'بانتظار المرحلة'} · ${s.count||0} سجل</div></div></div><span class="mut">${s.last?greg(s.last):''}</span></div>`).join(''):'<div class="empty">لا يوجد طلاب مسجلون في هذه الفترة</div>'; };
+  $('#st').onchange = e => {state.st=e.target.value;viewAdmin();};
+  if ($('#periodTarget')) $('#periodTarget').onchange=e=>state.periodTarget=e.target.value;
+  if ($('#selectAll')) $('#selectAll').onchange=e=>app.querySelectorAll('.pickStudent').forEach(c=>c.checked=e.target.checked);
+  if ($('#enrollSelected')) $('#enrollSelected').onclick=async()=>{const civils=[...app.querySelectorAll('.pickStudent:checked')].map(c=>c.value);const period=$('#periodTarget').value;if(!civils.length){toast('حدد طالبًا واحدًا على الأقل');return;}try{const r=await api('enrollStudents',{civils,period});await loadAdminData();state.periodFilter=period;state.periodTarget=period;viewAdmin();toast(`تمت إضافة ${r.count} طالب إلى ${periodLabel(period)}`);}catch(e){toast(e.message);}};
+}
+function recompute() {
+  const m = new Map();
+  for (const r of state.records || []) { const e = m.get(r.civil) || { count: 0, last: '' }; e.count++; if (r.date > e.last) e.last = r.date; m.set(r.civil, e); }
+  state.students = (state.students || []).map(s => ({ ...s, count: m.get(s.civil)?.count || 0, last: m.get(s.civil)?.last || '' }));
+}
+function applyAdmin(d) {
+  state.students = d.students || []; state.records = d.records || []; state.attendance = d.attendance || [];
+  state.notes = d.notes || []; state.pending = d.pending || []; state.enrollments = d.enrollments || []; recompute();
+}
+async function loadAdminData() { const d = await api('adminData'); applyAdmin(d); return d; }
+async function refresh() { try { await loadAdminData(); viewAdmin(); } catch(e) { toast(e.message); } }
+function monthNow() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function monthDays(month) { const [y,m]=month.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function dateFor(month, day) { return `${month}-${String(day).padStart(2,'0')}`; }
+function weekdayShort(dateStr) { const [y,m,d]=dateStr.split('-').map(Number); return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y,m-1,d).getDay()]; }
+function normCivil(v) { return String(v ?? '').replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, ''); }
+function monthWeeks(month) { // أسابيع تبدأ السبت وتنتهي الجمعة
+  const n=monthDays(month), weeks=[]; let cur=[];
+  for(let d=1;d<=n;d++){ const ds=dateFor(month,d), [y,m,dd]=ds.split('-').map(Number); cur.push(ds);
+    if(new Date(y,m-1,dd).getDay()===5||d===n){weeks.push(cur);cur=[];} }
+  return weeks;
+}
+const ATT_STATUS = ['','حاضر','غائب','متأخر','بعذر'];
+const ATT_LABEL = {'':'—','حاضر':'حاضر','غائب':'غائب','متأخر':'متأخر','بعذر':'بعذر'};
+const ATT_STYLE = {'':'background:#f3f4f3;color:#6b7a72','حاضر':'background:#dff3e6;color:#13693a','غائب':'background:#fbeae7;color:#b3402f','متأخر':'background:#fff3d6;color:#8a6410','بعذر':'background:#e5f0fb;color:#1f5a99'};
+const attStyle = (st, d) => ATT_STYLE[st] + (d === today() ? ';outline:2px solid var(--gold)' : '');
+function viewAttendance() {
+  state.view='admin'; state.adminPage='attendance';
+  const month=state.attMonth||monthNow(), weeks=monthWeeks(month), t=today();
+  if(state.attWeek==null||state.attWeek>=weeks.length){const i=weeks.findIndex(w=>w.includes(t));state.attWeek=i>=0?i:0;}
+  const days=weeks[state.attWeek], map=new Map((state.attendance||[]).map(a=>[a.civil+'|'+a.date,a.status]));
+  const rows=(state.students||[]).filter(s=>s.civil).map(s=>`<div class="rec"><div class="flex"><b class="sp">${esc(s.name)}</b><span class="mut">${esc(s.civil)}</span></div><div style="display:grid;grid-template-columns:repeat(${days.length},minmax(48px,1fr));gap:5px;margin-top:8px">${days.map(d=>{
+    const st=map.get(s.civil+'|'+d)||'';
+    return `<div style="text-align:center"><div class="mut" style="font-weight:700">${weekdayShort(d)}</div><div class="mut" style="font-size:10px">${d.slice(-2)}</div><select class="att" style="${attStyle(st,d)}" onchange="setAttendance(this,'${esc(s.civil)}','${d}')">${ATT_STATUS.map(v=>`<option value="${v}"${v===st?' selected':''}>${ATT_LABEL[v]}</option>`).join('')}</select></div>`;
+  }).join('')}</div></div>`).join('');
+  app.innerHTML=`${adminNav('attendance')}<div class="card"><div class="flex"><h2 class="sp" style="margin:0">سجل الحضور اليومي</h2><span class="mut" id="attSave"></span></div><label>الشهر</label><input type="month" id="attMonth" value="${month}"><div class="tabs" style="margin-top:10px;flex-wrap:wrap">${weeks.map((w,i)=>`<button class="${i===state.attWeek?'on':''}" onclick="setAttWeek(${i})">الأسبوع ${i+1}</button>`).join('')}</div>
+  <div class="flex" style="margin-bottom:6px"><select id="attDay" style="flex:1">${days.map(d=>`<option value="${d}"${d===t?' selected':''}>${weekdayShort(d)} ${d.slice(-2)}</option>`).join('')}</select><button class="sm" id="attAll">تحضير الكل: حاضر</button></div>
+  <p class="mut">اختر الحالة من القائمة تحت كل يوم، ويتم الحفظ تلقائيًا في الخلفية. زر التحضير يعبّئ الخانات الفارغة فقط لليوم المختار.</p><div style="overflow-x:auto">${rows||'<div class="empty">أضف الطلاب أولًا</div>'}</div></div>`;
+  $('#attMonth').onchange=async e=>{ if(!e.target.value) return; state.attMonth=e.target.value; state.attWeek=null; try{await loadAttendanceMonth();}catch(err){toast(err.message);} viewAttendance(); };
+  $('#attAll').onclick=async()=>{
+    const date=$('#attDay').value, btn=$('#attAll'); btn.disabled=true;
+    try{ const r=await api('saveAttendanceBatch',{date,status:'حاضر'});
+      (r.added||[]).forEach(c=>{ if(!(state.attendance||[]).some(a=>a.civil===c&&a.date===date)) state.attendance.push({civil:c,date,status:'حاضر'}); });
+      toast(`تم تحضير ${(r.added||[]).length} طالب ✓`); viewAttendance();
+    }catch(e){ toast(e.message); btn.disabled=false; }
+  };
+}
+window.setAttWeek = i => {state.attWeek=i;viewAttendance();};
+async function loadAttendanceMonth() {
+  const month=state.attMonth||monthNow(), last=monthDays(month);
+  const d=await api('attendanceList',{start:dateFor(month,1),end:dateFor(month,last)});
+  state.attendance=(state.attendance||[]).filter(a=>!a.date.startsWith(month+'-')).concat(d.attendance||[]);
+}
+let attQ=Promise.resolve(), attPending=0;
+const attNote=()=>{ const e=$('#attSave'); if(e) e.textContent=attPending?`جارٍ الحفظ (${attPending})…`:'✓ تم الحفظ'; };
+window.addEventListener('beforeunload',e=>{ if(attPending){ e.preventDefault(); e.returnValue=''; } });
+window.setAttendance = (el,civil,date) => {
+  const next=el.value, same=a=>a.civil===civil&&a.date===date;
+  const prev=(state.attendance||[]).find(same)?.status||'';
+  state.attendance=(state.attendance||[]).filter(a=>!same(a)); if(next) state.attendance.push({civil,date,status:next});
+  el.setAttribute('style',attStyle(next,date));           // تحديث فوري بلا انتظار الخادم
+  attPending++; attNote();
+  attQ=attQ.then(()=>api('saveAttendance',{civil,date,status:next})).catch(e=>{
+    state.attendance=(state.attendance||[]).filter(a=>!same(a)); if(prev) state.attendance.push({civil,date,status:prev});
+    if(document.body.contains(el)){ el.value=prev; el.setAttribute('style',attStyle(prev,date)); }
+    toast('تعذّر الحفظ: '+e.message);
+  }).finally(()=>{ attPending--; attNote(); });
+};
+function viewNotes() {
+  state.view='admin';state.adminPage='notes';
+  const notes=(state.notes||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  app.innerHTML=`${adminNav('notes')}<div class="card"><h2>إضافة ملاحظة أو عقوبة</h2><label>الطالب</label><select id="noteCivil">${(state.students||[]).map(s=>`<option value="${esc(s.civil)}">${esc(s.name)} — ${esc(s.civil)}</option>`).join('')}</select><div class="row"><div><label>التاريخ</label><input type="date" id="noteDate" value="${today()}"></div><div><label>التصنيف</label><select id="noteCategory"><option>ملاحظة</option><option>تنبيه</option><option>عقوبة</option><option>إشادة</option></select></div></div><label>التفاصيل</label><textarea id="noteDescription" rows="3" placeholder="اكتب الملاحظة أو سبب العقوبة"></textarea><label>الإجراء المتخذ (اختياري)</label><input id="noteAction"><div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="noteVisible" type="checkbox" checked style="width:auto"><label for="noteVisible" style="margin:0">إظهار لولي الأمر</label></div><button style="width:100%;margin-top:12px" id="saveNote">حفظ الملاحظة</button></div><div class="card"><h2>السجلات السابقة (${notes.length})</h2>${notes.length?notes.map(n=>`<div class="rec"><div class="t"><b>${esc(n.category)} — ${esc((state.students||[]).find(s=>s.civil===n.civil)?.name||n.civil)}</b>${can('notes.delete')?`<button class="sm red" onclick="deleteNote('${esc(n.id)}')">حذف</button>`:''}</div><div class="mut">${greg(n.date)} · ${n.visibleToParent?'ظاهر لولي الأمر':'خاص بالمشرف'}</div><div>${esc(n.description)}</div>${n.action?`<div class="mut">الإجراء: ${esc(n.action)}</div>`:''}</div>`).join(''):'<div class="empty">لا توجد ملاحظات بعد</div>'}</div>`;
+  $('#saveNote').onclick=async()=>{
+    const description=$('#noteDescription').value.trim(); if(!description){toast('اكتب تفاصيل الملاحظة أولًا');return;}
+    try{const n={civil:$('#noteCivil').value,date:$('#noteDate').value,category:$('#noteCategory').value,description,measure:$('#noteAction').value,visibleToParent:$('#noteVisible').checked};const res=await api('addNote',n);state.notes.push({id:res.id,civil:n.civil,date:n.date,category:n.category,description:n.description,action:n.measure,status:'مسجل',visibleToParent:n.visibleToParent});toast('تم حفظ الملاحظة ✓');viewNotes();}catch(e){toast(e.message);}
+  };
+}
+window.deleteNote=async id=>{if(!confirm('حذف هذه الملاحظة؟'))return;try{await api('deleteNote',{id});state.notes=state.notes.filter(n=>n.id!==id);viewNotes();}catch(e){toast(e.message);}};
+function viewAnalytics() {
+  state.view='admin';state.adminPage='analytics';
+  const students=state.students||[], records=state.records||[], attendance=state.attendance||[];
+  const totalH=records.filter(r=>r.type==='حفظ').length, totalM=records.filter(r=>r.type==='مراجعة').length;
+  const present=attendance.filter(a=>a.status==='حاضر').length, absent=attendance.filter(a=>a.status==='غائب').length;
+  const sameCivil=(a,b)=>normCivil(a)===normCivil(b);
+  const ranking=students.map(s=>({s,h:records.filter(r=>sameCivil(r.civil,s.civil)&&String(r.type||'').trim()==='حفظ').length,m:records.filter(r=>sameCivil(r.civil,s.civil)&&String(r.type||'').trim()==='مراجعة').length,a:attendance.filter(r=>sameCivil(r.civil,s.civil)&&String(r.status||'').trim()==='حاضر').length,abs:attendance.filter(r=>sameCivil(r.civil,s.civil)&&String(r.status||'').trim()==='غائب').length})).sort((a,b)=>b.h-a.h);
+  app.innerHTML=`${adminNav('analytics')}<div class="stats"><div class="stat"><b>${totalH}</b><span class="mut">سجلات الحفظ</span></div><div class="stat"><b>${totalM}</b><span class="mut">سجلات المراجعة</span></div><div class="stat"><b>${present}</b><span class="mut">مرات الحضور</span></div><div class="stat"><b>${absent}</b><span class="mut">مرات الغياب</span></div><div class="stat"><b>${students.length}</b><span class="mut">حسابات الطلاب</span></div><div class="stat"><b>${(state.pending||[]).length}</b><span class="mut">أسماء بانتظار البيانات</span></div></div><div class="card"><h2>إنجازات الطلاب</h2><p class="mut">الترتيب بحسب عدد سجلات الحفظ المسجلة، وليس تقييمًا لقدرات الطالب.</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:right;padding:8px">الطالب</th><th>حفظ</th><th>مراجعة</th><th>حضور</th><th>غياب</th></tr></thead><tbody>${ranking.map(x=>`<tr><td style="padding:8px;border-top:1px solid var(--bd)">${esc(x.s.name)}</td><td style="text-align:center;border-top:1px solid var(--bd)">${x.h}</td><td style="text-align:center;border-top:1px solid var(--bd)">${x.m}</td><td style="text-align:center;border-top:1px solid var(--bd)">${x.a}</td><td style="text-align:center;border-top:1px solid var(--bd)">${x.abs}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function viewImport() {
+  state.view='admin';state.adminPage='import';
+  const pending=state.pending||[];
+  app.innerHTML=`${adminNav('import')}<div class="card"><h2>استيراد بيانات الطلاب من Excel</h2><p class="mut">يمكن رفع ملف يحتوي على أعمدة الاسم/ name، الرقم المدني/ civil، المرحلة/ stage، الهاتف/ phone. إذا احتوى الصف على اسم فقط، سيُحفظ في قائمة الأسماء التي تنتظر استكمال البيانات ولن يُنشأ له حساب دخول بعد.</p><label>اختر ملف Excel أو CSV</label><input id="excelFile" type="file" accept=".xlsx,.xls,.csv"><button id="importBtn" style="width:100%;margin-top:12px">رفع واستيراد الملف</button><div id="importResult" class="mut" style="margin-top:10px"></div></div><div class="card"><h2>تصدير البيانات</h2><p class="mut">ينشئ ملف Excel يتضمن الطلاب، والحفظ والمراجعة، والحضور، والملاحظات، والأسماء قيد الاستكمال.</p><button id="exportBtn" style="width:100%">تصدير جميع البيانات إلى Excel</button></div><div class="card"><h2>أسماء بانتظار استكمال البيانات (${pending.length})</h2>${pending.length?pending.map(p=>`<div class="rec"><b>${esc(p.name)}</b><button class="sm sec" onclick="completePending(decodeURIComponent('${encodeURIComponent(p.name)}'))">إنشاء حساب بعد استكمال البيانات</button></div>`).join(''):'<div class="empty">لا توجد أسماء معلقة</div>'}</div>`;
+  if(!can('import')) $('#importBtn').closest('.card').style.display='none';
+  if(!can('export')) $('#exportBtn').closest('.card').style.display='none';
+  $('#importBtn').onclick=async()=>{
+    const file=$('#excelFile').files[0];if(!file){toast('اختر ملفًا أولًا');return;}
+    if(!window.XLSX){toast('تعذر تحميل أداة Excel؛ تحقق من اتصال الإنترنت.');return;}
+    try{
+      const buf=await file.arrayBuffer(), wb=XLSX.read(buf,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]], rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      const result=await api('importStudents',{rows});
+      $('#importResult').textContent=`تم إنشاء ${result.added} حسابًا، وإضافة ${result.pending} اسمًا بانتظار البيانات، وتجاوز ${result.skipped} صف.`;
+      if(result.errors?.length) $('#importResult').textContent+=' ملاحظات: '+result.errors.join('؛ ');
+      await loadAdminData();viewImport();
+    }catch(e){toast(e.message);}
+  };
+  $('#exportBtn').onclick=async()=>{
+    try{
+      if(!window.XLSX){toast('تعذر تحميل أداة Excel؛ تحقق من اتصال الإنترنت.');return;}
+      await loadAdminData();
+      const wb=XLSX.utils.book_new();
+      const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,name);};
+      add('Students',state.students||[]);add('Records',state.records||[]);add('Attendance',state.attendance||[]);add('Notes',state.notes||[]);add('PendingStudents',state.pending||[]);
+      XLSX.writeFile(wb,`Quran_Export_${today()}.xlsx`);
+    }catch(e){toast(e.message);}
+  };
+}
+window.completePending = name => {
+  const civil=prompt('أدخل الرقم المدني للطالب:');if(!civil)return;
+  const stage=prompt('أدخل المرحلة (يمكن تركها فارغة):')||'';
+  const phone=prompt('أدخل هاتف ولي الأمر (اختياري):')||'';
+  api('completePending',{name,civil:civil.trim(),stage,phone}).then(async()=>{toast('تم إنشاء حساب الطالب ✓');await loadAdminData();viewAdmin();}).catch(e=>toast(e.message));
+};
+function viewAdd() {
+  app.innerHTML = `<div class="card"><h2>إضافة طالب</h2><label>الاسم</label><input id="n"><label>الرقم المدني (اسم المستخدم)</label><input id="c" inputmode="numeric">
+  <label>المرحلة العمرية</label><select id="s"><option value="">—</option>${STAGES.map(x => `<option>${x}</option>`).join('')}</select><label>هاتف ولي الأمر (اختياري)</label><input id="ph" inputmode="tel">
+  <p class="mut">كلمة السر الابتدائية = الرقم المدني، ويمكن لولي الأمر تغييرها.</p>
+  <div class="flex"><button id="sv">حفظ</button><button class="sec" onclick="viewAdmin()">إلغاء</button></div></div>`;
+  $('#sv').onclick = async () => { try { await api('addStudent', { name: $('#n').value, civil: normDigits($('#c').value), stage: $('#s').value, phone: $('#ph').value }); toast('تمت الإضافة ✓'); refresh(); } catch (e) { toast(e.message); } };
+}
+
+/* ---------- المعلم: ملف الطالب ---------- */
+const syncCur = () => { state.curRecords = (state.records || []).filter(r => r.civil === state.cur.civil).sort((a, b) => b.date.localeCompare(a.date)); };
+window.openStu = c => { state.cur = state.students.find(s => s.civil === c); if (!state.cur) return; state.tab = 'حفظ'; syncCur(); viewStudent(); };
+function viewStudent() {
+  state.view = 'stu'; const s = state.cur, tab = state.tab;
+  app.innerHTML = `<button class="sm sec" onclick="viewAdmin()">→ رجوع</button>
+  <div class="card" style="margin-top:10px"><div class="flex"><div class="av">${esc(s.name[0])}</div><div class="sp"><b>${esc(s.name)}</b><div class="mut">${esc(s.stage) || ''} · ${esc(s.civil)} ${s.phone ? '· ' + esc(s.phone) : ''}</div></div></div>
+  <div class="flex" style="margin-top:10px">${can('students.manage')?'<button class="sm sec" onclick="editStu()">تعديل البيانات</button>':''}${can('password.reset')?'<button class="sm sec" onclick="resetP()">إعادة كلمة السر</button>':''}${can('students.manage')?'<button class="sm red" onclick="delStu()">حذف الطالب</button>':''}</div></div>
+  <div class="card"><h2>تسجيل جديد</h2><div class="row keep"><div><label>التاريخ</label><input type="date" id="d" value="${today()}"></div><div><label>النوع</label><select id="t"><option>حفظ</option><option>مراجعة</option></select></div></div>
+  <label>السورة</label><select id="su" required><option value="">— اختر السورة —</option>${SURAHS.map(x => `<option value="${x}">${x}</option>`).join('')}</select>
+  <div class="row"><div><label>الآيات / الصفحة</label><input id="ay" placeholder="كاملة أو ١–٢٠"></div><div><label>التقييم</label><select id="rt">${RATINGS.map(x => `<option>${x}</option>`).join('')}</select></div></div>
+  <label>ملاحظة (اختياري)</label><input id="nt"><button style="width:100%;margin-top:12px" id="ar">إضافة</button></div>
+  ${statsHTML(state.curRecords || [])}${tabsHTML(tab)}<div class="card">${recList(state.curRecords || [], tab, can('records.delete'))}</div>`;
+  $('#ar').onclick = async () => {
+    const rec = { date: $('#d').value, type: $('#t').value, surah: $('#su').value.trim(), ayat: $('#ay').value, rating: $('#rt').value, note: $('#nt').value };
+    if (!rec.surah) { toast('اكتب اسم السورة'); return; }
+    $('#ar').disabled = true;
+    try {
+      const res = await api('addRecord', { civil: s.civil, rec });
+      state.records.push({ id: res.id, civil: s.civil, ...rec }); recompute();
+      state.cur = state.students.find(x => x.civil === s.civil) || s; syncCur(); toast('تمت الإضافة ✓'); viewStudent();
+    } catch (e) { toast(e.message); $('#ar').disabled = false; }
+  };
+}
+window.delRec = async id => { if (!confirm('حذف هذا السجل؟')) return; try { await api('delRecord', { id }); state.records = state.records.filter(r => r.id !== id); recompute(); state.cur = state.students.find(x => x.civil === state.cur.civil) || state.cur; syncCur(); viewStudent(); } catch(e) { toast(e.message); } };
+window.resetP = async () => { if (!confirm('إعادة كلمة السر إلى الرقم المدني؟')) return; try { await api('resetPass', { civil: state.cur.civil }); toast('تمت الإعادة ✓'); } catch (e) { toast(e.message); } };
+window.editStu = async () => {
+  const s = state.cur, name = prompt('اسم الطالب:', s.name); if (!name) return;
+  const stage = prompt('المرحلة (' + STAGES.join(' / ') + '):', s.stage || '') ?? s.stage, phone = prompt('هاتف ولي الأمر:', s.phone || '') ?? s.phone;
+  try { await api('updateStudent', { civil: s.civil, name, stage, phone }); await loadAdminData(); state.cur = state.students.find(x => x.civil === s.civil); syncCur(); viewStudent(); toast('تم التحديث ✓'); } catch (e) { toast(e.message); }
+};
+window.delStu = async () => { if (!confirm('سيتم حذف الطالب وكل سجلاته نهائياً. متأكد؟')) return; try { await api('delStudent', { civil: state.cur.civil }); toast('تم الحذف'); await refresh(); } catch (e) { toast(e.message); } };
+
+
+/* ---------- إدارة الحسابات (مبرمج / مشرف) ---------- */
+const PERM_TABLE = [
+  ['عرض الطلاب والإحصائيات', 1, 1, 1], ['تسجيل الحفظ والمراجعة', 1, 1, 1], ['تسجيل الحضور', 1, 1, 1], ['إضافة ملاحظات وعقوبات', 1, 1, 1],
+  ['رؤية هاتف ولي الأمر', 0, 1, 1], ['حذف سجلات الحفظ والملاحظات', 0, 1, 1], ['إضافة وتعديل وحذف الطلاب', 0, 1, 1],
+  ['إعادة كلمة سر ولي الأمر', 0, 1, 1], ['استيراد وتصدير Excel', 0, 1, 1], ['إدارة حسابات المدرسين', 0, 1, 1],
+  ['إدارة المشرفين والمبرمجين', 0, 0, 1], ['أدوات النظام', 0, 0, 1]
+];
+async function viewStaff() {
+  state.view = 'admin'; state.adminPage = 'staff';
+  app.innerHTML = `${adminNav('staff')}<div class="card"><div class="empty">جارٍ التحميل…</div></div>`;
+  try { const d = await api('listStaff'); state.staffList = d.staff; state.staffRoles = d.roles; renderStaff(); } catch (e) { toast(e.message); }
+}
+function renderStaff() {
+  const list = state.staffList || [], roles = state.staffRoles || [];
+  app.innerHTML = `${adminNav('staff')}<div class="card"><h2>إضافة حساب</h2>
+  <div class="row"><div><label>الاسم</label><input id="stfName"></div><div><label>اسم المستخدم (حروف إنجليزية بلا مسافات)</label><input id="stfUser" dir="ltr" autocapitalize="off" autocomplete="off"></div></div>
+  <div class="row"><div><label>الدور</label><select id="stfRole">${roles.map(r => `<option value="${r.id}">${esc(r.label)}</option>`).join('')}</select></div><div><label>كلمة السر (٦ أحرف على الأقل)</label><input id="stfPass" dir="ltr" autocomplete="off"></div></div>
+  <button style="width:100%;margin-top:12px" id="stfAdd">إضافة الحساب</button></div>
+  <div class="card"><h2>الحسابات (${list.length})</h2>${list.length ? list.map(x => `<div class="rec"><div class="t"><b>${esc(x.name)}</b><span class="badge">${esc(ROLE_LABEL[x.role] || x.role)}</span>${x.active ? '' : '<span class="badge b-يحتاج-إعادة">موقوف</span>'}</div><div class="mut" dir="ltr" style="text-align:right">${esc(x.username)}</div>
+  <div class="flex" style="margin-top:6px"><button class="sm sec" onclick="staffPass('${esc(x.username)}')">كلمة سر جديدة</button><button class="sm sec" onclick="staffToggle('${esc(x.username)}',${!x.active})">${x.active ? 'إيقاف' : 'تفعيل'}</button><button class="sm red" onclick="staffDel('${esc(x.username)}')">حذف</button></div></div>`).join('') : '<div class="empty">لا توجد حسابات بعد</div>'}</div>
+  <div class="card"><h2>جدول الصلاحيات</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr><th style="text-align:right;padding:6px">الصلاحية</th><th>مدرس</th><th>مشرف</th><th>مبرمج</th></tr></thead><tbody>${PERM_TABLE.map(r => `<tr><td style="padding:6px;border-top:1px solid var(--bd)">${r[0]}</td>${[1, 2, 3].map(i => `<td style="text-align:center;border-top:1px solid var(--bd)">${r[i] ? '✓' : '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  $('#stfAdd').onclick = async () => {
+    const btn = $('#stfAdd'); btn.disabled = true;
+    try { await api('addStaff', { username: $('#stfUser').value.trim(), name: $('#stfName').value.trim(), role: $('#stfRole').value, newPass: $('#stfPass').value }); toast('تمت إضافة الحساب ✓'); viewStaff(); }
+    catch (e) { toast(e.message); btn.disabled = false; }
+  };
+}
+window.staffPass = async u => { const n = prompt('كلمة السر الجديدة للحساب ' + u + ' (٦ أحرف على الأقل):'); if (!n) return; try { await api('resetStaffPass', { username: u, newPass: n }); toast('تم تغيير كلمة السر ✓'); } catch (e) { toast(e.message); } };
+window.staffToggle = async (u, active) => { try { await api('updateStaff', { username: u, active }); viewStaff(); } catch (e) { toast(e.message); } };
+window.staffDel = async u => { if (!confirm('حذف الحساب ' + u + ' نهائيًا؟')) return; try { await api('delStaff', { username: u }); viewStaff(); } catch (e) { toast(e.message); } };
+
+/* ---------- النظام (المبرمج) ---------- */
+async function viewSystem() {
+  state.view = 'admin'; state.adminPage = 'system';
+  app.innerHTML = `${adminNav('system')}<div class="card"><div class="empty">جارٍ التحميل…</div></div>`;
+  try {
+    const d = await api('systemInfo'), c = d.counts, warn = [];
+    if (d.noCivil) warn.push(`${d.noCivil} طالب بلا رقم مدني (لا يستطيعون الدخول)`);
+    if (d.noHash) warn.push(`${d.noHash} حساب سيُنشأ له كلمة سر عند أول دخول`);
+    app.innerHTML = `${adminNav('system')}<div class="stats"><div class="stat"><b>${d.version}</b><span class="mut">إصدار الخادم</span></div><div class="stat"><b>${c.students}</b><span class="mut">الطلاب</span></div><div class="stat"><b>${c.staff}</b><span class="mut">حسابات الكادر</span></div><div class="stat"><b>${c.records}</b><span class="mut">سجلات الحفظ</span></div><div class="stat"><b>${c.attendance}</b><span class="mut">سجلات الحضور</span></div><div class="stat"><b>${c.notes}</b><span class="mut">الملاحظات</span></div></div>
+    <div class="card"><h2>معلومات الخادم</h2><div class="rec"><span class="mut">المنطقة الزمنية:</span> <span dir="ltr">${esc(d.timezone)}</span></div><div class="rec"><span class="mut">تاريخ الخادم اليوم:</span> <span dir="ltr">${esc(d.serverDate)}</span> ${d.serverDate === today() ? '✓' : '<b style="color:var(--red)">يختلف عن تاريخ جهازك — اضبط المنطقة الزمنية</b>'}</div>
+    ${warn.length ? warn.map(w => `<div class="rec">⚠ ${esc(w)}</div>`).join('') : '<div class="rec">✓ لا توجد مشاكل في البيانات</div>'}</div>`;
+  } catch (e) { toast(e.message); }
+}
+
+/* ---------- البدء ---------- */
+if (cred) api('login').then(start).catch(() => logout()); else viewLogin();
+</script>
+</body>
+</html>

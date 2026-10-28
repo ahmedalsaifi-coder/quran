@@ -110,7 +110,7 @@ const setHB = () => {
 function viewLogin(err = '') {
   app.innerHTML = `<div class="card login"><div class="logo">🕌</div><h2>تسجيل الدخول</h2>
   <p class="mut">لمتابعة حفظ الطالب (ولي الأمر) أو لوحة المعلم</p>
-  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني لولي الأمر، أو اسم مستخدم الكادر)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
+  <label style="text-align:right" for="u">اسم المستخدم (الرقم المدني للطالب، أو اسم مستخدم الكادر)</label><input id="u" name="username" type="text" inputmode="text" enterkeyhint="next" autocomplete="username" autocapitalize="off" spellcheck="false">
   <label style="text-align:right" for="p">كلمة السر</label><input id="p" name="password" type="password" dir="ltr" autocomplete="current-password" autocapitalize="off" spellcheck="false">
   <button style="width:100%;margin-top:14px" id="go">دخول</button><div class="err" ${err ? '' : 'hidden'}>${esc(err)}</div></div>`;
   let submitting = false;
